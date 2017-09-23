@@ -1,111 +1,157 @@
-# RoboND - KUKA KR210
-Jun Zhu
+**Robotics Nanodegree**\
+P2: Robotic Arm: Pick and Place\
+Markus Buchholz
 
+**Introduction\
+\
+**The goal for this project was to created forward and inverse kinematic
+model for KUKA KR210 robot arm. The model development, debugging and
+testing was performed by use of ROS and Rviz. Developed kinematic model
+allows to pick objects from shelf and place them to refuse heap (8/10).
+Debug process was performed in the same development environment where
+several robot position and joint angles(orientations) were verified.
 
-This is the robotic arm pick and place project at RoboND, Udacity. The task is to write code and perform inverse kinematics for the KUKA KR210. 
+**Kinematic Analysis**
 
----
+![](media/image1.png){width="6.531944444444444in" height="3.55in"}
 
+1.  **DH Parameters**
 
-![alt text](misc_images/highlight1.png)
+KUKA robot kinematic model can be presented as follows. Following sketch
+allowed to defined the DH parameters.
 
-## Preparations
+  i   alpha(i-1)   a (i-1)   d (i)   q (i)
+  --- ------------ --------- ------- -------------
+  1   0            0         0.75    
+  2   -pi/2        0.35      0       q2: q2-pi/2
+  3   0            1.25      0       
+  4   -pi/2        -0.054    1.50    
+  5   pi/2         0         0       
+  6   -pi/2        0         0       
+  7   0            0         0.303   q7: 0
 
-#### Enviroment setup
-```
-# this needs to be done whenever you open a new terminal
-source /opt/ros/kinetic/setup.bash
+1.  **Transformation Matrices**
 
-# To save the effort, one can do
-echo 'source /opt/ros/kinetic/setup.bash' >> ~/.bashrc
+Homogenous transform matrix TF\_Matrix is a skeleton in order to compute
+individual transform matrices about each joint (using the DH\_table).
 
-# Then we can see some information from the following command
-printenv | grep ROS
-```
+![](media/image2.png){width="6.531944444444444in"
+height="1.3138888888888889in"}
 
-#### Upgrade gazebo
+![](media/image3.png){width="5.3411931321084865in"
+height="1.586003937007874in"}
 
-```
-gazebo --version
-# 7.7.0+ is required for this project
-sudo sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list'
-wget http://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add -
-sudo apt-get update
-sudo apt-get install gazebo7
+Homogeneous transform matrix T0\_EE from base\_link to gripper\_link can
+be given by following matrix equations:
 
-```
+![](media/image4.png){width="4.624429133858268in"
+height="1.9842858705161854in"}
 
-#### Create a catkin work space
+1.  **Decouple Inverse Kinematics **
 
-```
-mkdir -p <root directory>/catkin_ws/src
-cd <root directory>/catkin_ws/
-catkin_make
-```
+Inverse kinematic for 6 axis robot will be performed by kinematical
+decoupling, where in order to solve the whole problem can be divided by
+two subtasks: 1. Position inverse kinematic problem and 2. Orientation
+inverse kinematic problem.
 
-#### Install dependencies
+a.  **Position inverse kinematic problem**
 
-```
-# clone the project
+Analyzing following figure is can be estimated that:
 
-cd <root directory>/catkin_ws/
-rosdep install --from-paths src --ignore-src --rosdistro=kinetic -y
-```
+![](media/image5.png){width="6.531944444444444in"
+height="4.252083333333333in"}
 
-#### Build the project
+**R0\_6 = R\_EE** (Euler Rotation matrix: roll, pitch, yaw).
 
-```
-cd <root directory>/catkin_ws/
+**wc = p - dG\*R\*k**
 
-catkin_make
+**wc = p - dG\*R\_EE\*k, where k = \[0,0,1\].T**
 
-# if you get:
-# fatal error: ignition/math/Inertial.hh: No such file or directory, then install the following library and re-build
-sudo apt-get install libignition-math2
-```
+p = \[Px, Py, Pz\] = end-effector positions
 
-#### For each start, one needs to type the following 
+Wc = \[Wx, Wy, Wz\] = wrist positions
 
-```
-export GAZEBO_MODEL_PATH=<root directory>/catkin_ws/src/RoboND-KUKA-KR210/kuka_arm/models
+In spherical wrist, axes z4, z5 and z6 intersects in the same O point.
+Therefore O4, O5 and O6 are placed in the same place in the middle of
+wrist. This affects that movement of axis 4, 5 or 6 does not influence
+on position of point O, therefore position of O is the function of
+theta1, theta2 and theta3.
 
-source <root directory>/catkin_ws/devel/setup.bash
+![](media/image6.png){width="3.7111351706036744in"
+height="2.405964566929134in"}
 
-# to save the effort push them into your ~/.bashrc
-```
+Applying the correction (URDF frame is different):
 
-#### Run the project
+The ROT\_EE can be given as follows:
 
-```
-cd <root directory>/catkin_ws/src/RoboND-KUKA-KR210/kuka_arm/scripts
+![](media/image7.png){width="6.531944444444444in"
+height="0.8256944444444444in"}
 
-# Make sure "value" is false in <root directory>/catkin_ws/src/RoboND-KUKA-KR210/kuka_arm/launch/inverse_kinematics.launch
+Matrix ROT\_EE is multiplied by vector **k** therefore only last columns
+is further applied. Finally the wrist positions is given by (in this
+project dG = 0.303), px,py and pz is given by user (robot trajectory) :
 
-./safe_spawner.sh
-```
-__Wait until "Ready to receive an IK request" appears in the original terminal__
+![](media/image8.png){width="4.468360673665792in"
+height="1.2935728346456692in"}
 
-#### Bugs
+In order to compute theta 1, theta2 and theta3 below triangle should be
+evaluated.
 
-To ensure the gripper grasps the target before it retreats, add a line
+![](media/image9.png){width="3.4837390638670165in"
+height="2.5704680664916886in"}
 
-```
-ros::Duration(5.0).sleep();
-```
+Analyzing the below triangle with the position of wrist WC,
+calculating theta1 can be done as follows:
 
-at line 327 in the file [trajectory_sampler.cpp](kuka_arm/src/trajectory_sampler.cpp)
+![](media/image10.png){width="2.231213910761155in"
+height="0.47698272090988625in"}
 
-__But there is still a small chance that the gripper failed to grasp the target!__
+Applying trigonometric transformations (below) the theta2 and theta3 can
+be computed as follows:
 
+![](media/image11.png){width="6.531944444444444in"
+height="0.9465277777777777in"}
 
-## Kinematic analysis
+![](media/image12.png){width="6.531944444444444in" height="0.9375in"}
 
-For details, please check [kinematics_solution.ipynb](kinematics_solution.ipynb).
+a.  **Orientation inverse kinematic problem**
 
+Since the overall RPY (Roll Pitch Yaw) rotation between base\_link and
+gripper\_link must be equal to the product of individual rotations
+between respective links, following holds true:
 
-## Demonstration
+**R0\_6 = R** (Euler Rotation matrix: roll, pitch, yaw).
 
-__Success 12/12__
+**R = R0\_3 \* R3\_6**
 
-[![alt text](http://img.youtube.com/vi/aKXPpqryq6I/0.jpg)](https://youtu.be/aKXPpqryq6I)
+**R3\_6 = inv(R0\_3) \* R = (R0\_3).T \* R**
 
+**R3\_6 = (R0\_3).T \* R := U,** where U is a Euler Matrix
+
+![](media/image13.png){width="5.815181539807524in"
+height="0.8166972878390201in"}
+
+Solving above equation (taking into account rotation matrix R3\_6 and
+Euler Matrix) theta4, theta5 and theta6 are given by following
+equations:
+
+![](media/image14.png){width="6.531944444444444in"
+height="1.6416666666666666in"}
+
+**Project Implementation**
+
+In IK\_Server.py the Python code with implemented solution was included.
+Solution calculates Inverse Kinematics based on previously performed
+Kinematic Analysis. Robot successfully fulfill project requirements and
+complete 8/10 pick and place cycles.
+
+![](media/image15.jpeg){width="5.091666666666667in"
+height="3.928472222222222in"}
+
+![C:\\Users\\Markus
+Buchholz\\AppData\\Local\\Microsoft\\Windows\\INetCache\\Content.Word\\performance\_2.jpg](media/image16.jpeg){width="5.271676509186352in"
+height="3.969044181977253in"}
+
+![C:\\Users\\Markus
+Buchholz\\AppData\\Local\\Microsoft\\Windows\\INetCache\\Content.Word\\performance\_3.jpg](media/image17.jpeg){width="5.279435695538058in"
+height="4.2136603237095365in"}

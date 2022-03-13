@@ -148,10 +148,4 @@ complete 8/10 pick and place cycles.
 ![](media/image15.jpeg){width="5.091666666666667in"
 height="3.928472222222222in"}
 
-![C:\\Users\\Markus
-Buchholz\\AppData\\Local\\Microsoft\\Windows\\INetCache\\Content.Word\\performance\_2.jpg](media/image16.jpeg){width="5.271676509186352in"
-height="3.969044181977253in"}
 
-![C:\\Users\\Markus
-Buchholz\\AppData\\Local\\Microsoft\\Windows\\INetCache\\Content.Word\\performance\_3.jpg](media/image17.jpeg){width="5.279435695538058in"
-height="4.2136603237095365in"}
